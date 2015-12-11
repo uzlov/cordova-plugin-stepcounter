@@ -44,8 +44,17 @@ import org.json.JSONObject;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Calendar;
 
 import static java.lang.System.currentTimeMillis;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class StepCounterService extends Service implements SensorEventListener {
 
@@ -87,6 +96,34 @@ public class StepCounterService extends Service implements SensorEventListener {
         super.onCreate();
         Log.i(TAG, "onCreate");
         // Do some setup stuff
+
+        Timer timer = new Timer();
+        TimerTask pedometerReportTask = new TimerTask() {
+
+            private SharedPreferences prefs = getApplicationContext().getSharedPreferences("com.adobe.phonegap.push", Context.MODE_PRIVATE);
+            private String servicesToken = prefs.getString("servicesToken", "");
+
+            @Override
+            public void run () {
+                //Log.v(TAG, "servicesToken=" + servicesToken);
+                createPedometerReport(servicesToken);
+            }
+        };
+
+        Date curent_time = new Date(System.currentTimeMillis());
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(curent_time);
+        int hour = cal.get(Calendar.HOUR_OF_DAY);
+        int min = cal.get(Calendar.MINUTE);
+        int sec = cal.get(Calendar.SECOND);
+
+        // Start at 20.25.
+        long when = ((20 * 3600 + 25 * 60) - ((hour * 3600) + (min * 60) + sec)) * 1000;
+        //long when = ((14 * 3600 + 43 * 60) - ((hour * 3600) + (min * 60) + sec)) * 1000;
+        // Interval of repeat 24h.
+        long interval = 24 * 60 * 60 * 1000;
+        //long interval = 1000 * 1 * 60;
+        timer.schedule(pedometerReportTask, when, interval);
     }
 
     @Override
@@ -115,6 +152,66 @@ public class StepCounterService extends Service implements SensorEventListener {
         return Service.START_STICKY;
     }
 
+    public void createPedometerReport(String servicesToken) {
+        Log.i(TAG, "createPedometerReport");
+        Integer daySteps  = 0;
+
+        SharedPreferences sharedPref = getSharedPreferences("UserData", Context.MODE_PRIVATE);
+        if(sharedPref.contains("pedometerData")){
+            String pDataString = sharedPref.getString("pedometerData", "{}");
+
+            Date currentDate = new Date();
+            SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd");
+            String currentDateString = dateFormatter.format(currentDate);
+
+            JSONObject pData = new JSONObject();
+            JSONObject dayData = new JSONObject();
+            try{
+                pData = new JSONObject(pDataString);
+                Log.d(TAG," got json shared prefs "+pData.toString());
+            }catch (JSONException err){
+                Log.d(TAG," Exception while parsing json string : " + pDataString);
+            }
+
+            if(pData.has(currentDateString)){
+                try {
+                    dayData = pData.getJSONObject(currentDateString);
+                    daySteps = dayData.getInt("steps");
+                }catch(JSONException err){
+                    Log.e(TAG,"Exception while getting Object from JSON for " + currentDateString);
+                }
+            }
+
+            Log.i(TAG, "PedometerReport steps for today: " + daySteps);
+            try {
+                // Prepare JSON containing the answer message content.
+                JSONObject jData = new JSONObject();
+                jData.put("steps", daySteps);
+
+                // Create connection to send GCM Message request.
+                URL url = new URL("http://dev.api.mental-apps.skilld.fr/service/patient_pedometer?services_token=" + servicesToken);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestMethod("POST");
+                conn.setDoOutput(true);
+
+                // Send answer message content.
+                OutputStream outputStream = conn.getOutputStream();
+                outputStream.write(jData.toString().getBytes());
+                InputStream inputStream = conn.getInputStream();
+
+                Log.d(TAG, "Successfully sent PedometerReport message.");
+            } catch (IOException e) {
+                Log.d(TAG, "IOException: Unable to send PedometerReport message.");
+                e.printStackTrace();
+            } catch (JSONException e) {
+                Log.d(TAG, "JSONException: Unable to send PedometerReport message.");
+                e.printStackTrace();
+            }
+        }else{
+            Log.i(TAG, "PedometerReport - No steps history found in stepCounterService !");
+        }
+    }
 
     public void doInit() {
         Log.i(TAG, "Registering STEP_DETECTOR sensor");
@@ -243,3 +340,4 @@ public class StepCounterService extends Service implements SensorEventListener {
         Log.i(TAG, "onDestroy");
     }
 }
+
