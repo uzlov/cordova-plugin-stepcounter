@@ -96,7 +96,6 @@ public class StepCounterService extends Service implements SensorEventListener {
         super.onCreate();
         Log.i(TAG, "onCreate");
         // Do some setup stuff
-
     }
 
     @Override
@@ -109,11 +108,31 @@ public class StepCounterService extends Service implements SensorEventListener {
         AlarmManager aManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
         PendingIntent stepIntent = PendingIntent.getService(getApplicationContext(), 10, newServiceIntent, PendingIntent.FLAG_UPDATE_CURRENT);
         //PendingIntent.GetService (ApplicationContext, 10, intent2, PendingIntentFlags.UpdateCurrent);
-
         aManager.set(AlarmManager.RTC, java.lang.System.currentTimeMillis() + 1000 * 60 * 60, stepIntent);
 
-
         if (isRunning /* || has no step sensors */) {
+            Date curentTime = new Date(System.currentTimeMillis());
+            Calendar cal = Calendar.getInstance();
+            cal.setTime(curentTime);
+            int hour = cal.get(Calendar.HOUR_OF_DAY);
+            int min = cal.get(Calendar.MINUTE);
+
+            // We send report of pedometr, only if current time time < 20.20
+            if (hour < 20 || (hour == 20 && min < 20)) {
+                Timer timer = new Timer();
+                TimerTask pedometerReportTask = new TimerTask() {
+                private SharedPreferences prefs = getApplicationContext().getSharedPreferences("com.adobe.phonegap.push", Context.MODE_PRIVATE);
+                    private String servicesToken = prefs.getString("servicesToken", "");
+                    @Override
+                    public void run () {
+                        //Log.v(TAG, "servicesToken=" + servicesToken);
+                        createPedometerReport(servicesToken);
+                    }
+                };
+                long when = 30 * 1000; // 30 sec
+                timer.schedule(pedometerReportTask, when);
+            }
+
             Log.i(TAG, "Not initialising sensors");
             return Service.START_STICKY;
         }
@@ -194,36 +213,6 @@ public class StepCounterService extends Service implements SensorEventListener {
         mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         mStepSensor    = mSensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
         mSensorManager.registerListener(this, mStepSensor, SensorManager.SENSOR_DELAY_NORMAL);
-
-        Timer timer = new Timer();
-        TimerTask pedometerReportTask = new TimerTask() {
-            private SharedPreferences prefs = getApplicationContext().getSharedPreferences("com.adobe.phonegap.push", Context.MODE_PRIVATE);
-            private String servicesToken = prefs.getString("servicesToken", "");
-            @Override
-            public void run () {
-                //Log.v(TAG, "servicesToken=" + servicesToken);
-                createPedometerReport(servicesToken);
-            }
-        };
-
-        Date curent_time = new Date(System.currentTimeMillis());
-        Calendar cal = Calendar.getInstance();
-        cal.setTime(curent_time);
-        int hour = cal.get(Calendar.HOUR_OF_DAY);
-        int min = cal.get(Calendar.MINUTE);
-        int sec = cal.get(Calendar.SECOND);
-
-        // Start at 20.25.
-        long when = ((20 * 3600 + 25 * 60) - ((hour * 3600) + (min * 60) + sec)) * 1000;
-        // long when = 60 * 1000;
-        // Interval of repeat 24h.
-        long interval = 24 * 60 * 60 * 1000;
-        // long interval = 1000 * 1 * 60;
-        if (when < 30 * 1000) {
-            when = when + interval;
-        }
-
-        timer.schedule(pedometerReportTask, when, interval);
     }
 
     @Override
@@ -343,3 +332,4 @@ public class StepCounterService extends Service implements SensorEventListener {
         Log.i(TAG, "onDestroy");
     }
 }
+
