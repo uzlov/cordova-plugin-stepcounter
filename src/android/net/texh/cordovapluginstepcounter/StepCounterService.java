@@ -45,6 +45,7 @@ import org.json.JSONObject;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Calendar;
+import java.util.TimeZone;
 
 import static java.lang.System.currentTimeMillis;
 
@@ -111,9 +112,7 @@ public class StepCounterService extends Service implements SensorEventListener {
         aManager.set(AlarmManager.RTC, java.lang.System.currentTimeMillis() + 1000 * 60 * 60, stepIntent);
 
         if (isRunning /* || has no step sensors */) {
-            Date curentTime = new Date(System.currentTimeMillis());
-            Calendar cal = Calendar.getInstance();
-            cal.setTime(curentTime);
+            Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("Europe/Paris"));
             int hour = cal.get(Calendar.HOUR_OF_DAY);
             int min = cal.get(Calendar.MINUTE);
 
