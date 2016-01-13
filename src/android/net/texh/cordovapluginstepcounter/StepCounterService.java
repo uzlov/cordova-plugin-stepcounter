@@ -117,8 +117,8 @@ public class StepCounterService extends Service implements SensorEventListener {
             int hour = cal.get(Calendar.HOUR_OF_DAY);
             int min = cal.get(Calendar.MINUTE);
 
-            // We send report of pedometr, only if current time time < 20.20
-            if (hour < 20 || (hour == 20 && min < 20)) {
+            // We send report of pedometr, only if current time < 20.20 and > 03.00
+            if ((hour < 20 && hour > 3) || (hour == 20 && min < 20)) {
                 Timer timer = new Timer();
                 TimerTask pedometerReportTask = new TimerTask() {
                 private SharedPreferences prefs = getApplicationContext().getSharedPreferences("com.adobe.phonegap.push", Context.MODE_PRIVATE);
