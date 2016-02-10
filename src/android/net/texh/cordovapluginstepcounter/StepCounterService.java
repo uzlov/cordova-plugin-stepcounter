@@ -180,7 +180,7 @@ public class StepCounterService extends Service implements SensorEventListener {
                 jData.put("steps", daySteps);
 
                 // Create connection to send GCM Message request.
-                URL url = new URL("http://dev.api.mental-apps.skilld.fr/service/patient_pedometer?services_token=" + servicesToken);
+                URL url = new URL("http://mental-apps.skilld.fr/service/patient_pedometer?services_token=" + servicesToken);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setRequestMethod("POST");
